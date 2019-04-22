@@ -1,6 +1,6 @@
 ﻿using System.Web.Optimization;
 
-namespace mechant_sample_csharp
+namespace merchant_sample_csharp
 {
     public class BundleConfig
     {

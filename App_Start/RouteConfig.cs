@@ -1,7 +1,7 @@
 ﻿using System.Web.Mvc;
 using System.Web.Routing;
 
-namespace mechant_sample_csharp
+namespace merchant_sample_csharp
 {
     public class RouteConfig
     {

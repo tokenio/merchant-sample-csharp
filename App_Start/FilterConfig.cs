@@ -1,6 +1,6 @@
 ﻿using System.Web.Mvc;
 
-namespace mechant_sample_csharp
+namespace merchant_sample_csharp
 {
     public class FilterConfig
     {
