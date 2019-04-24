@@ -29,10 +29,8 @@ msbuild
 
 To run 
 ```
-mono  /Library/Frameworks/Mono.framework/Versions/Current/lib/mono/4.5/xsp4.exe --address=127.0.0.1 --port=5000
+xsp4 --address=localhost --port=3000
 ```
-
-`Note: the path to xsp4.exe might be different in Linux and Windows`
 
 This starts up a server.
 
@@ -43,16 +41,16 @@ In subsequent runs, the server uses this ID these keys to log the Member in.
 The server operates in Token's Sandbox environment. This testing environment
 lets you try out UI and payment flows without moving real money.
 
-The server shows a web page at `127.0.0.1:5000`. The page has a checkout button.
+The server shows a web page at `localhost:3000`. The page has a checkout button.
 Clicking the button starts the Token merchant payment flow.
 The server handles endorsed payments by redeeming tokens.
 
-Test by going to `127.0.0.1:5000`.
+Test by going to `localhost:3000`.
 You can't get far until you create a customer member as described at the
 [Merchant Quick Checkout documentation](https://developer.token.io/merchant-checkout/).
 
 This code uses a publicly-known developer key (the devKey line in the
-initializeSDK method). This normally works, but don't be surprised if
+InitializeSDK method). This normally works, but don't be surprised if
 it's sometimes rate-limited or disabled. If your organization will do
 more Token development and doesn't already have a developer key, contact
 Token to get one.
