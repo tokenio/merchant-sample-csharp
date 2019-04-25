@@ -3,21 +3,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
-using System.Net.Http.Formatting;
 using System.Text;
 using System.Web;
-using System.Web.Http;
 using System.Web.Mvc;
 using Google.Protobuf;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Org.BouncyCastle.Ocsp;
 using Tokenio;
 using Tokenio.Proto.Common.AccountProtos;
 using Tokenio.Proto.Common.AliasProtos;
-using Tokenio.Proto.Common.TokenProtos;
+using Tokenio.Proto.Common.MemberProtos;
 using Tokenio.Proto.Common.TransferInstructionsProtos;
 using Tokenio.Security;
+using Member = Tokenio.Member;
 using TokenRequest = Tokenio.TokenRequest;
 
 namespace merchant_sample_csharp.Controllers
@@ -124,7 +120,6 @@ namespace merchant_sample_csharp.Controllers
                 .ConnectTo(TokenCluster.GetCluster(TokenCluster.TokenEnv.Sandbox))
                 .Port(443)
                 .Timeout(10 * 60 * 1000) // Set high for easy debugging.
-                .DeveloperKey("4qY7lqQw8NOl9gng0ZHgT4xdiDqxqoGVutuZwrUYQsI")
                 // This KeyStore reads private keys from files.
                 // Here, it's set up to read the ./keys dir.
                 .WithKeyStore(new UnsecuredFileSystemKeyStore(key.FullName))
@@ -161,7 +156,14 @@ namespace merchant_sample_csharp.Controllers
                 Type = Alias.Types.Type.Email
             };
 
-            return tokenClient.CreateMemberBlocking(alias);
+            var member = tokenClient.CreateMemberBlocking(alias);
+            // A member's profile has a display name and picture.
+            // The Token UI shows this (and the alias) to the user when requesting access.
+            member.SetProfile(new Profile
+            {
+                DisplayNameFirst = "Merchant Demo"
+            });
+            return member;
         }
 
         /// <summary>

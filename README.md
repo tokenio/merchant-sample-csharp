@@ -17,7 +17,7 @@ Install `Mono` from [here](https://www.mono-project.com/download/stable/).
 
  `Mono` is an open source implementation of Microsoft's .NET Framework. It brings the .NET framework to non-Windows envrionments like Linux and OSX.
 
-## Build
+## Build and Run
 
 To build
 
@@ -28,6 +28,7 @@ msbuild
 ```
 
 To run 
+
 ```
 xsp4 --address=localhost --port=3000
 ```
