@@ -93,10 +93,9 @@ namespace merchant_sample_csharp.Controllers
             var csrfToken = Request.Cookies["csrf_token"];
             
             // check CSRF token and retrieve state and token ID from callback parameters
-            TokenRequestCallback callback = tokenClient
-                .ParseTokenRequestCallbackUrlBlocking(
-                    queryParams,
-                    csrfToken.Value);
+            TokenRequestCallback callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
+                queryParams, 
+                csrfToken.Value);
 
             //get the token and check its validity
             var token = merchantMember.GetTokenBlocking(callback.TokenId);
