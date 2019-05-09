@@ -61,7 +61,7 @@ namespace merchant_sample_csharp.Controllers
             Response.Cookies.Add(cookie);
             
             // create the token request
-            var request = TokenRequest.transferTokenRequestBuilder(amount, currency)
+            var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
                 .SetDescription(formData["description"])
                 .AddDestination(new TransferEndpoint
                 {
