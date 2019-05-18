@@ -38,17 +38,11 @@ namespace merchant_sample_csharp.Controllers
         }
 
         [System.Web.Mvc.HttpPost]
-        public ActionResult Transfer()
+        public string Transfer(TokenRequestModel formData)
         {
-            var receiveStream = Request.InputStream;
-            var readStream = new StreamReader(receiveStream, Encoding.UTF8);
-            var requestBody = readStream.ReadToEnd();
-                
-            var formData = ParseFormData(requestBody);
-            
-            var amount = Double.Parse(formData["amount"]);
-            var currency = formData["currency"];
-            var destination = JsonParser.Default.Parse<BankAccount>(formData["destination"]);
+            var amount = formData.amount;
+            var currency = formData.currency;
+            var destination = JsonParser.Default.Parse<BankAccount>(formData.destination);
 
             // generate CSRF token
             var csrfToken = Util.Nonce();
@@ -62,7 +56,7 @@ namespace merchant_sample_csharp.Controllers
             
             // create the token request
             var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                .SetDescription(formData["description"])
+                .SetDescription(formData.description)
                 .AddDestination(new TransferEndpoint
                 {
                     Account = destination
@@ -79,9 +73,8 @@ namespace merchant_sample_csharp.Controllers
             //generate Token Request URL to redirect to
             var tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
             
-            //send a 302 Redirect
-            Response.StatusCode = 302;
-            return new RedirectResult(tokenRequestUrl);
+            //send tokenRequestUrl
+            return tokenRequestUrl;
         }
 
         [System.Web.Mvc.HttpGet]
@@ -182,26 +175,13 @@ namespace merchant_sample_csharp.Controllers
                 : LoadMember(tokenClient, memberIds.First());
         }
 
-        /// <summary>
-        /// Parse form Data
-        /// </summary>
-        /// <param name="query">url query data</param>
-        /// <returns>Dictionary of Query parameters</returns>
-        [System.Web.Mvc.NonAction]
-        private static Dictionary<string, string> ParseFormData(string query)
+        public class TokenRequestModel
         {
-            var queryPairs = new Dictionary<string, string>();
-            var pairs = query.Split('&');
-            
-            foreach (var pair in pairs)
-            {
-                var idx = pair.IndexOf('=');
-                queryPairs.Add(
-                    WebUtility.UrlDecode(pair.Substring(0, idx)),
-                    WebUtility.UrlDecode(pair.Substring(idx +  1)));
-            }
-
-            return queryPairs;
+            public string merchantId { get; set; }
+            public double amount { get; set; }
+            public string currency { get; set; }
+            public string description { get; set; }
+            public string destination { get; set; }
         }
     }
 }
