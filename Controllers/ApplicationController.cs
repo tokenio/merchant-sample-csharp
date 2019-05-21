@@ -53,6 +53,9 @@ namespace merchant_sample_csharp.Controllers
             var cookie = new HttpCookie("csrf_token") {Value = csrfToken};
             // set CSRF token in browser cookie
             Response.Cookies.Add(cookie);
+
+            // generate Redirect Url
+            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem");
             
             // create the token request
             var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
@@ -64,7 +67,7 @@ namespace merchant_sample_csharp.Controllers
                 .SetRefId(refId)
                 .SetToAlias(merchantMember.GetFirstAliasBlocking())
                 .SetToMemberId(merchantMember.MemberId())
-                .SetRedirectUrl("http://localhost:3000/redeem")
+                .SetRedirectUrl(redirectUrl)
                 .SetCsrfToken(csrfToken)
                 .build();
 
