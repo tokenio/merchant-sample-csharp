@@ -182,7 +182,7 @@ namespace merchant_sample_csharp.Controllers
         private static Member InitializeMember(TokenClient tokenClient)
         {
             var keyDir = Directory.GetFiles("./keys");
-            
+
             var memberIds = keyDir.Where(d => d.Contains("_")).Select(d => d.Replace("_", ":"));
             
             return !memberIds.Any() 
