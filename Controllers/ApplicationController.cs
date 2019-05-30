@@ -160,8 +160,10 @@ namespace merchant_sample_csharp.Controllers
             // The Token UI shows this (and the alias) to the user when requesting access.
             member.SetProfile(new Profile
             {
-                DisplayNameFirst = "Merchant Demo"
+                DisplayNameFirst = "Demo Merchant"
             });
+            byte[] pict = System.IO.File.ReadAllBytes("Content/southside.png");
+            member.SetProfilePictureBlocking("image/png", pict);
             return member;
         }
 
