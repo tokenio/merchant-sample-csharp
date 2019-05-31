@@ -202,7 +202,15 @@ namespace merchant_sample_csharp.Controllers
         [System.Web.Mvc.NonAction]
         private static Member LoadMember(TokenClient tokenClient, string memberId)
         {
-            return tokenClient.GetMemberBlocking(memberId);
+            try
+            {
+                return tokenClient.GetMemberBlocking(memberId);
+            }
+            catch (KeyNotFoundException)
+            {
+                // it looks like we have a key but the member it belongs to does not exist in the DB
+                throw new Exception("Couldn't log in saved member, not found. Remove keys dir and try again.");
+            }
         }
 
         /// <summary>
@@ -227,8 +235,10 @@ namespace merchant_sample_csharp.Controllers
             // The Token UI shows this (and the alias) to the user when requesting access.
             member.SetProfile(new Profile
             {
-                DisplayNameFirst = "Merchant Demo"
+                DisplayNameFirst = "Demo Merchant"
             });
+            byte[] pict = System.IO.File.ReadAllBytes("Content/southside.png");
+            member.SetProfilePictureBlocking("image/png", pict);
             return member;
         }
 
@@ -240,13 +250,14 @@ namespace merchant_sample_csharp.Controllers
         [System.Web.Mvc.NonAction]
         private static Member InitializeMember(TokenClient tokenClient)
         {
-            var keyDir = Directory.GetDirectories("./keys");
+            var keyDir = Directory.GetFiles("./keys");
 
             var memberIds = keyDir.Where(d => d.Contains("_")).Select(d => d.Replace("_", ":"));
-               
+            
             return !memberIds.Any() 
                 ? CreateMember(tokenClient) 
-                : LoadMember(tokenClient, memberIds.First());
+                : LoadMember(tokenClient, Path.GetFileName(memberIds.First()));
+
         }
 
         public class TokenRequestModel
