@@ -37,18 +37,15 @@ namespace merchant_sample_csharp.Controllers
             return View();
         }
 
-        [System.Web.Mvc.HttpPost]
-        public ActionResult Transfer()
+        [System.Web.Mvc.HttpGet]
+        public RedirectResult Transfer()
         {
-            var receiveStream = Request.InputStream;
-            var readStream = new StreamReader(receiveStream, Encoding.UTF8);
-            var requestBody = readStream.ReadToEnd();
-                
-            var formData = ParseFormData(requestBody);
-            
-            var amount = Double.Parse(formData["amount"]);
-            var currency = formData["currency"];
-            var destination = JsonParser.Default.Parse<BankAccount>(formData["destination"]);
+            var queryData = Request.QueryString;
+            var destination = JsonParser.Default.Parse<BankAccount>("{\"sepa\":{\"iban\":\"DE16700222000072880129\"}}");
+
+            var amount = Convert.ToDouble(queryData["amount"]);
+            var currency = queryData["currency"];
+            var description = queryData["description"];
 
             // generate CSRF token
             var csrfToken = Util.Nonce();
@@ -59,10 +56,13 @@ namespace merchant_sample_csharp.Controllers
             var cookie = new HttpCookie("csrf_token") {Value = csrfToken};
             // set CSRF token in browser cookie
             Response.Cookies.Add(cookie);
+
+            // generate Redirect Url
+            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem");
             
             // create the token request
             var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                .SetDescription(formData["description"])
+                .SetDescription(description)
                 .AddDestination(new TransferEndpoint
                 {
                     Account = destination
@@ -70,7 +70,7 @@ namespace merchant_sample_csharp.Controllers
                 .SetRefId(refId)
                 .SetToAlias(merchantMember.GetFirstAliasBlocking())
                 .SetToMemberId(merchantMember.MemberId())
-                .SetRedirectUrl("http://localhost:3000/redeem")
+                .SetRedirectUrl(redirectUrl)
                 .SetCsrfToken(csrfToken)
                 .build();
 
@@ -79,9 +79,54 @@ namespace merchant_sample_csharp.Controllers
             //generate Token Request URL to redirect to
             var tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
             
-            //send a 302 Redirect
+            //send a 302 redirect
             Response.StatusCode = 302;
             return new RedirectResult(tokenRequestUrl);
+        }
+
+        [System.Web.Mvc.HttpPost]
+        public string TransferPopup(TokenRequestModel formData)
+        {
+            var destination = JsonParser.Default.Parse<BankAccount>("{\"sepa\":{\"iban\":\"DE16700222000072880129\"}}");
+
+            var amount = Convert.ToDouble(formData.amount);
+            var currency = formData.currency;
+            var description = formData.description;
+
+            // generate CSRF token
+            var csrfToken = Util.Nonce();
+
+            // generate a reference ID for the token
+            var refId = Util.Nonce();
+
+            var cookie = new HttpCookie("csrf_token") {Value = csrfToken};
+            // set CSRF token in browser cookie
+            Response.Cookies.Add(cookie);
+
+            // generate Redirect Url
+            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-popup");
+            
+            // create the token request
+            var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
+                .SetDescription(description)
+                .AddDestination(new TransferEndpoint
+                {
+                    Account = destination
+                })
+                .SetRefId(refId)
+                .SetToAlias(merchantMember.GetFirstAliasBlocking())
+                .SetToMemberId(merchantMember.MemberId())
+                .SetRedirectUrl(redirectUrl)
+                .SetCsrfToken(csrfToken)
+                .build();
+
+            var requestId = merchantMember.StoreTokenRequestBlocking(request);
+
+            //generate Token Request URL to redirect to
+            var tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
+            
+            //send tokenRequestUrl
+            return tokenRequestUrl;
         }
 
         [System.Web.Mvc.HttpGet]
@@ -104,7 +149,29 @@ namespace merchant_sample_csharp.Controllers
             var transfer = merchantMember.RedeemTokenBlocking(token);
 
             return "Success! Redeemed transfer " + transfer.Id;
-        } 
+        }
+
+        [System.Web.Mvc.HttpGet]
+        public string RedeemPopup()
+        {
+            var queryParams = Request.QueryString.ToString();
+            
+            // retrieve CSRF token from browser cookie
+            var csrfToken = Request.Cookies["csrf_token"];
+            
+            // check CSRF token and retrieve state and token ID from callback parameters
+            TokenRequestCallback callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
+                queryParams, 
+                csrfToken.Value);
+
+            //get the token and check its validity
+            var token = merchantMember.GetTokenBlocking(callback.TokenId);
+            
+            //redeem the token at the server to move the funds
+            var transfer = merchantMember.RedeemTokenBlocking(token);
+
+            return "Success! Redeemed transfer " + transfer.Id;
+        }
         
         /// <summary>
         /// Initializes the SDK, pointing it to the specified environment and the directory where keys are being stored.
@@ -193,26 +260,13 @@ namespace merchant_sample_csharp.Controllers
 
         }
 
-        /// <summary>
-        /// Parse form Data
-        /// </summary>
-        /// <param name="query">url query data</param>
-        /// <returns>Dictionary of Query parameters</returns>
-        [System.Web.Mvc.NonAction]
-        private static Dictionary<string, string> ParseFormData(string query)
+        public class TokenRequestModel
         {
-            var queryPairs = new Dictionary<string, string>();
-            var pairs = query.Split('&');
-            
-            foreach (var pair in pairs)
-            {
-                var idx = pair.IndexOf('=');
-                queryPairs.Add(
-                    WebUtility.UrlDecode(pair.Substring(0, idx)),
-                    WebUtility.UrlDecode(pair.Substring(idx +  1)));
-            }
-
-            return queryPairs;
+            public string merchantId { get; set; }
+            public double amount { get; set; }
+            public string currency { get; set; }
+            public string description { get; set; }
+            public string destination { get; set; }
         }
     }
 }
