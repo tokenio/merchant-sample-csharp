@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -132,14 +133,14 @@ namespace merchant_sample_csharp.Controllers
         [System.Web.Mvc.HttpGet]
         public string Redeem()
         {
-            var queryParams = Request.QueryString.ToString();
+            var callbackUrl = Request.Url.ToString();
             
             // retrieve CSRF token from browser cookie
             var csrfToken = Request.Cookies["csrf_token"];
             
             // check CSRF token and retrieve state and token ID from callback parameters
             TokenRequestCallback callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
-                queryParams, 
+                callbackUrl, 
                 csrfToken.Value);
 
             //get the token and check its validity
@@ -154,19 +155,18 @@ namespace merchant_sample_csharp.Controllers
         [System.Web.Mvc.HttpGet]
         public string RedeemPopup()
         {
-            var queryParams = Request.QueryString.ToString();
+            var queryParams = Request.QueryString;
             
             // retrieve CSRF token from browser cookie
             var csrfToken = Request.Cookies["csrf_token"];
             
             // check CSRF token and retrieve state and token ID from callback parameters
-            TokenRequestCallback callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
+            TokenRequestCallback callback = tokenClient.ParseTokenRequestCallbackParamsBlocking(
                 queryParams, 
                 csrfToken.Value);
 
             //get the token and check its validity
             var token = merchantMember.GetTokenBlocking(callback.TokenId);
-            
             //redeem the token at the server to move the funds
             var transfer = merchantMember.RedeemTokenBlocking(token);
 
