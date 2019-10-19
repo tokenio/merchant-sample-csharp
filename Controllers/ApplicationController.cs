@@ -71,8 +71,8 @@ namespace merchant_sample_csharp.Controllers
                             Account = destination
                         })
                         .SetRefId(refId)
-                        .SetToAlias(merchantMember.GetFirstAliasBlocking())
-                        .SetToMemberId(merchantMember.MemberId())
+                        .SetToAlias(alias)
+                        .SetToMemberId(mem.MemberId())
                         .SetRedirectUrl(redirectUrl)
                         .SetCsrfToken(csrfToken)
                         .build()))
@@ -118,8 +118,8 @@ namespace merchant_sample_csharp.Controllers
                             Account = destination
                         })
                         .SetRefId(refId)
-                        .SetToAlias(merchantMember.GetFirstAliasBlocking())
-                        .SetToMemberId(merchantMember.MemberId())
+                        .SetToAlias(alias)
+                        .SetToMemberId(mem.MemberId())
                         .SetRedirectUrl(redirectUrl)
                         .SetCsrfToken(csrfToken)
                         .build()))
