@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Text;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 using Google.Protobuf;
@@ -21,13 +19,15 @@ namespace merchant_sample_csharp.Controllers
 {
     public class ApplicationController : Controller
     {
+        private static String rootLocation = AppDomain.CurrentDomain.BaseDirectory;
+        
         // Connect to Token's development sandbox
         private static readonly TokenClient tokenClient = InitializeSDK();
         
         // If we're running the first time, create a new member (Token user account)
         // for this test merchant.
         // If we're running again, log in the previously-created member.
-        private static Member merchantMember = InitializeMember(tokenClient);
+        private static Member merchantMember;
         
         /// <summary>
         /// Returns index page of sample
@@ -38,8 +38,8 @@ namespace merchant_sample_csharp.Controllers
             return View();
         }
 
-        [System.Web.Mvc.HttpGet]
-        public RedirectResult Transfer()
+        [HttpGet]
+        public Task<RedirectResult> Transfer()
         {
             var queryData = Request.QueryString;
             var destination = JsonParser.Default.Parse<BankAccount>("{\"sepa\":{\"iban\":\"DE16700222000072880129\"}}");
@@ -60,33 +60,34 @@ namespace merchant_sample_csharp.Controllers
 
             // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem");
-            
-            // create the token request
-            var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                .SetDescription(description)
-                .AddDestination(new TransferEndpoint
+
+            return GetMerchantMember().FlatMap(mem => mem.GetFirstAlias()
+                .FlatMap(alias => mem.StoreTokenRequest(
+                    // Create a token request to be stored
+                    TokenRequest.TransferTokenRequestBuilder(amount, currency)
+                        .SetDescription(description)
+                        .AddDestination(new TransferEndpoint
+                        {
+                            Account = destination
+                        })
+                        .SetRefId(refId)
+                        .SetToAlias(alias)
+                        .SetToMemberId(mem.MemberId())
+                        .SetRedirectUrl(redirectUrl)
+                        .SetCsrfToken(csrfToken)
+                        .build()))
+                // generate the Token request URL to redirect to
+                .FlatMap(requestId => tokenClient.GenerateTokenRequestUrl(requestId))
+                .Map(url =>
                 {
-                    Account = destination
-                })
-                .SetRefId(refId)
-                .SetToAlias(merchantMember.GetFirstAliasBlocking())
-                .SetToMemberId(merchantMember.MemberId())
-                .SetRedirectUrl(redirectUrl)
-                .SetCsrfToken(csrfToken)
-                .build();
-
-            var requestId = merchantMember.StoreTokenRequestBlocking(request);
-
-            //generate Token Request URL to redirect to
-            var tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
-            
-            //send a 302 redirect
-            Response.StatusCode = 302;
-            return new RedirectResult(tokenRequestUrl);
+                    // send a 302 redirect
+                    Response.StatusCode = 302;
+                    return new RedirectResult(url);
+                }));
         }
 
-        [System.Web.Mvc.HttpPost]
-        public string TransferPopup(TokenRequestModel formData)
+        [HttpPost]
+        public Task<string> TransferPopup(TokenRequestModel formData)
         {
             var destination = JsonParser.Default.Parse<BankAccount>("{\"sepa\":{\"iban\":\"DE16700222000072880129\"}}");
 
@@ -106,81 +107,70 @@ namespace merchant_sample_csharp.Controllers
 
             // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-popup");
-            
-            // create the token request
-            var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                .SetDescription(description)
-                .AddDestination(new TransferEndpoint
-                {
-                    Account = destination
-                })
-                .SetRefId(refId)
-                .SetToAlias(merchantMember.GetFirstAliasBlocking())
-                .SetToMemberId(merchantMember.MemberId())
-                .SetRedirectUrl(redirectUrl)
-                .SetCsrfToken(csrfToken)
-                .build();
 
-            var requestId = merchantMember.StoreTokenRequestBlocking(request);
-
-            //generate Token Request URL to redirect to
-            var tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
-            
-            //send tokenRequestUrl
-            return tokenRequestUrl;
+            return GetMerchantMember().FlatMap(mem => mem.GetFirstAlias()
+                .FlatMap(alias => mem.StoreTokenRequest(
+                    // Create a token request to be stored
+                    TokenRequest.TransferTokenRequestBuilder(amount, currency)
+                        .SetDescription(description)
+                        .AddDestination(new TransferEndpoint
+                        {
+                            Account = destination
+                        })
+                        .SetRefId(refId)
+                        .SetToAlias(alias)
+                        .SetToMemberId(mem.MemberId())
+                        .SetRedirectUrl(redirectUrl)
+                        .SetCsrfToken(csrfToken)
+                        .build()))
+                // generate the Token request URL to redirect to
+                .FlatMap(requestId => tokenClient.GenerateTokenRequestUrl(requestId)));
         }
 
-        [System.Web.Mvc.HttpGet]
-        public string Redeem()
+        [HttpGet]
+        public Task<string> Redeem()
         {
             var callbackUrl = Request.Url.ToString();
             
             // retrieve CSRF token from browser cookie
             var csrfToken = Request.Cookies["csrf_token"];
-            
-            // check CSRF token and retrieve state and token ID from callback parameters
-            TokenRequestCallback callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
-                callbackUrl, 
-                csrfToken.Value);
 
-            //get the token and check its validity
-            var token = merchantMember.GetTokenBlocking(callback.TokenId);
-            
-            //redeem the token at the server to move the funds
-            var transfer = merchantMember.RedeemTokenBlocking(token);
-
-            return "Success! Redeemed transfer " + transfer.Id;
+            return GetMerchantMember()
+                // check CSRF token and retrieve state and token ID from callback parameters
+                .FlatMap(mem => tokenClient.ParseTokenRequestCallbackUrl(callbackUrl, csrfToken.Value)
+                    // get the token and check its validity
+                    .FlatMap(callback => mem.GetToken(callback.TokenId))
+                    // redeem the token at the server to move the funds
+                    .FlatMap(mem.RedeemToken)
+                    .Map(transfer => "Success! Redeemed transfer " + transfer.Id));
         }
 
-        [System.Web.Mvc.HttpGet]
-        public string RedeemPopup()
+        [HttpGet]
+        public Task<string> RedeemPopup()
         {
             var queryParams = Request.QueryString;
-            
+
             // retrieve CSRF token from browser cookie
             var csrfToken = Request.Cookies["csrf_token"];
-            
-            // check CSRF token and retrieve state and token ID from callback parameters
-            TokenRequestCallback callback = tokenClient.ParseTokenRequestCallbackParamsBlocking(
-                queryParams, 
-                csrfToken.Value);
 
-            //get the token and check its validity
-            var token = merchantMember.GetTokenBlocking(callback.TokenId);
-            //redeem the token at the server to move the funds
-            var transfer = merchantMember.RedeemTokenBlocking(token);
-
-            return "Success! Redeemed transfer " + transfer.Id;
+            return GetMerchantMember()
+                // check CSRF token and retrieve state and token ID from callback parameters
+                .FlatMap(mem => tokenClient.ParseTokenRequestCallbackParams(queryParams, csrfToken.Value)
+                    // get the token and check its validity
+                    .FlatMap(callback => mem.GetToken(callback.TokenId))
+                    // redeem the token at the server to move the funds
+                    .FlatMap(mem.RedeemToken)
+                    .Map(transfer => "Success! Redeemed transfer " + transfer.Id));
         }
-        
+
         /// <summary>
         /// Initializes the SDK, pointing it to the specified environment and the directory where keys are being stored.
         /// </summary>
         /// <returns>TokenClient SDK instance</returns>
-        [System.Web.Mvc.NonAction]
+        [NonAction]
         private static TokenClient InitializeSDK()
         {
-            var key = Directory.CreateDirectory("./keys");
+            var key = Directory.CreateDirectory(Path.Combine(rootLocation, "keys"));
 
             return TokenClient.NewBuilder()
                 .ConnectTo(TokenCluster.GetCluster(TokenCluster.TokenEnv.Sandbox))
@@ -199,12 +189,12 @@ namespace merchant_sample_csharp.Controllers
         /// <param name="tokenClient">SDK</param>
         /// <param name="memberId">ID of Member</param>
         /// <returns>Logged-in member</returns>
-        [System.Web.Mvc.NonAction]
-        private static Member LoadMember(TokenClient tokenClient, string memberId)
+        [NonAction]
+        private static Task<Member> LoadMember(TokenClient tokenClient, string memberId)
         {
             try
             {
-                return tokenClient.GetMemberBlocking(memberId);
+                return tokenClient.GetMember(memberId);
             }
             catch (KeyNotFoundException)
             {
@@ -220,8 +210,8 @@ namespace merchant_sample_csharp.Controllers
         /// </summary>
         /// <param name="tokenClient">SDK</param>
         /// <returns>newly-created member</returns>
-        [System.Web.Mvc.NonAction]
-        private static Member CreateMember(TokenClient tokenClient)
+        [NonAction]
+        private static Task<Member> CreateMember(TokenClient tokenClient)
         {
             Alias alias = new Alias
             {
@@ -229,17 +219,20 @@ namespace merchant_sample_csharp.Controllers
                 Value = "mcsharp-" + Util.Nonce().ToUpper() + "+noverify@example.com",
                 Type = Alias.Types.Type.Email
             };
+            return tokenClient.CreateMember(alias)
+                .FlatMap(async (mem) =>
+                {
+                    // A member's profile has a display name and picture.
+                    // The Token UI shows this (and the alias) to the user when requesting access.
+                    await mem.SetProfile(new Profile
+                    {
+                        DisplayNameFirst = "Demo Merchant"
+                    });
+                    byte[] pict = System.IO.File.ReadAllBytes(Path.Combine(rootLocation, "Content/southside.png"));
+                    await mem.SetProfilePicture("image/png", pict);
 
-            var member = tokenClient.CreateMemberBlocking(alias);
-            // A member's profile has a display name and picture.
-            // The Token UI shows this (and the alias) to the user when requesting access.
-            member.SetProfile(new Profile
-            {
-                DisplayNameFirst = "Demo Merchant"
-            });
-            byte[] pict = System.IO.File.ReadAllBytes("Content/southside.png");
-            member.SetProfilePictureBlocking("image/png", pict);
-            return member;
+                    return mem;
+                });
         }
 
         /// <summary>
@@ -247,10 +240,10 @@ namespace merchant_sample_csharp.Controllers
         /// </summary>
         /// <param name="tokenClient">Token SDK client</param>
         /// <returns>Logged-in member</returns>
-        [System.Web.Mvc.NonAction]
-        private static Member InitializeMember(TokenClient tokenClient)
+        [NonAction]
+        private static Task<Member> InitializeMember(TokenClient tokenClient)
         {
-            var keyDir = Directory.GetFiles("./keys");
+            var keyDir = Directory.GetFiles(Path.Combine(rootLocation, "keys"));
 
             var memberIds = keyDir.Where(d => d.Contains("_")).Select(d => d.Replace("_", ":"));
             
@@ -258,6 +251,19 @@ namespace merchant_sample_csharp.Controllers
                 ? CreateMember(tokenClient) 
                 : LoadMember(tokenClient, Path.GetFileName(memberIds.First()));
 
+        }
+        
+        [NonAction]
+        private static Task<Member> GetMerchantMember()
+        {
+            return merchantMember != null
+                ? Task.FromResult(merchantMember)
+                : InitializeMember(tokenClient)
+                    .Map(mem =>
+                    {
+                        merchantMember = mem;
+                        return mem;
+                    });
         }
 
         public class TokenRequestModel

@@ -59,3 +59,7 @@ Token to get one.
 ### Troubleshooting
 
 If anything goes wrong, try to clear your browser's cache before retest.
+
+If you see the following error: `The CodeDom provider type "Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider" 
+could not be located` try removing the NuGet packages Microsoft.CodeDom.Providers.DotNetCompilerPlatform 
+and Microsoft.Net.Compilers as per the advice in https://stackoverflow.com/questions/33319675/the-codedom-provider-type-microsoft-codedom-providers-dotnetcompilerplatform-cs.
