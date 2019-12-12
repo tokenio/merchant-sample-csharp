@@ -22,6 +22,31 @@ namespace merchant_sample_csharp
             );
 
             routes.MapRoute(
+                "StandingOrder",
+                "standing-order",
+                new { controller = "Application", action = "StandingOrder" }
+            );
+
+            routes.MapRoute(
+                "RedeemStandingOrder",
+                "redeem-standing-order",
+                new { controller = "Application", action = "RedeemStandingOrder" }
+            );
+
+
+            routes.MapRoute(
+                "StandingOrderPopup",
+                "standing-order-popup",
+                new { controller = "Application", action = "StandingOrderPopup" }
+            );
+
+            routes.MapRoute(
+                "RedeemStandingOrderPopup",
+                "redeem-standing-order-popup",
+                new { controller = "Application", action = "RedeemStandingOrderPopup" }
+            );
+
+            routes.MapRoute(
                 "Default",
                 "{action}/{id}",
                 new {controller = "Application", action = "Index", id = UrlParameter.Optional}

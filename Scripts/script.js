@@ -1,6 +1,12 @@
 "use strict";
 var tokenController;
 var button;
+var data = {
+    amount: 4.99,
+    currency: 'EUR',
+    description: 'Book Purchase',
+};
+var selectedTransferType;
 
 function clean() {
     if (button) {
@@ -14,7 +20,7 @@ function clean() {
     }
 }
 
-function createRedirectButton() {
+function createRedirectButton(transferType) {
     // clean up instances
     clean();
 
@@ -36,9 +42,11 @@ function createRedirectButton() {
 
     // bind the Token Button to the Token Controller when ready
     tokenController.bindButtonClick(
-        button, // TokenButton
-        redirectTokenRequest, // redirect token request function
-        function(error) { // bindComplete callback
+        button, // Token Button
+        function () {
+            redirectTokenRequest(transferType) // redirect token request function
+        },
+        function (error) { // bindComplete callback
             if (error) throw error;
             // enable button after binding
             button.enable();
@@ -62,17 +70,18 @@ function createPopupButton() {
     button = token.createTokenButton(element, {
         label: 'Token Quick Checkout',
     });
-
     // create TokenController to handle messages
+    var path = selectedTransferType === 'SINGLE_IMMEDIATE' ? '/redeem-popup' : '/redeem-standing-order-popup';
     tokenController = token.createController({
-        onSuccess: function(data) { // Success Callback
-            var queryString = Object.keys(data).map(key => key + '=' + window.encodeURIComponent(data[key])).join('&');
+        onSuccess: function (data) { // Success Callback
             // build success URL
-            var successURL = "/redeem-popup?" + queryString;
+            var queryString = Object.keys(data).map(key => key + '=' + window.encodeURIComponent(data[key])).join('&');
+            var successURL = path + "?" + queryString;
+            //var successURL = `${path}?data=${window.encodeURIComponent(JSON.stringify(data))}`;
             // navigate to success URL
             window.location.assign(successURL);
         },
-        onError: function(error) { // Failure Callback
+        onError: function (error) { // Failure Callback
             throw error;
         },
     });
@@ -81,7 +90,7 @@ function createPopupButton() {
     tokenController.bindButtonClick(
         button, // Token Button
         getTokenRequestUrl, // token request function
-        function(error) { // bindComplete callback
+        function (error) { // bindComplete callback
             if (error) throw error;
             // enable button after binding
             button.enable();
@@ -92,66 +101,71 @@ function createPopupButton() {
     );
 }
 
-function redirectTokenRequest(done) {
-    var data = {
-        amount: 4.99,
-        currency: 'EUR',
-        description: 'Book Purchase',
-    };
-
+function redirectTokenRequest(transferType) {
     // format data as URL query string
     var queryString = Object.keys(data).map(key => key + '=' + window.encodeURIComponent(data[key])).join('&');
-
     // go to transfer
-    done("/transfer?" + queryString);
+    var path = (selectedTransferType === 'SINGLE_IMMEDIATE' ? '/transfer' : '/standing-order') + '?';
+    document.location.assign(path + queryString);
 }
 
-// set up a function using the item data to populate the request to fetch the Token Request Function
+// set up a function using the item data to populate the request to fetch the TokenRequestFunction
 function getTokenRequestUrl(done) {
-    var data = {
-        amount: 4.99,
-        currency: 'EUR',
-        description: 'Book Purchase',
-    };
-
     // fetch Token Request URL
-    fetch('/transfer-popup', {
+    console.log(JSON.stringify(data));
+    var path = selectedTransferType === 'SINGLE_IMMEDIATE' ? '/transfer-popup' : '/standing-order-popup';
+    fetch(path, {
         method: 'POST',
+        //mode: 'no-cors',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
         },
         body: JSON.stringify(data),
-    }).then(function(response) {
+    })
+    .then(function (response) {
         if (response.ok) {
             response.text()
-                .then(function(tokenRequestUrl) {
+                .then(function (data) {
                     // execute callback when successful response is received
-                    done(tokenRequestUrl);
-                    console.log('tokenRequestUrl: ', tokenRequestUrl);
+                    done(data);
+                    console.log('data: ', data);
                 });
         }
     });
 }
 
 function setupButtonTypeSelector() {
-    var selector = document.getElementsByName('buttonTypeSelector');
-    var selected;
-    for (var i = 0; i < selector.length; i++) {
-        if (selector[i].checked) {
-            selected = selector[i].value;
-        }
-        selector[i].addEventListener('click', function(e) {
+    var transferTypeSelector = document.getElementsByName('transferTypeSelector');
+    var modeSelector = document.getElementsByName('buttonTypeSelector');
+    var selectedMode = modeSelector[0].value;
+    selectedTransferType = transferTypeSelector[0].value;
+
+    for (var i = 0; i < transferTypeSelector.length; i++) {
+        transferTypeSelector[i].addEventListener('click', function (e) {
             var value = e.target.value;
-            if (value === selected) return;
-            selected = value;
-            if (value === 'POPUP') {
-                createPopupButton();
-            } else if (value === 'REDIRECT') {
-                createRedirectButton();
-            }
+            if (value === selectedTransferType) return;
+            selectedTransferType = value;
+            createTokenRequestButton(selectedMode)
         });
     }
-    createRedirectButton();
+
+    for (var i = 0; i < modeSelector.length; i++) {
+        modeSelector[i].addEventListener('click', function (e) {
+            var value = e.target.value;
+            if (value === selectedMode) return;
+            selectedMode = value;
+            createTokenRequestButton(selectedMode)
+        });
+    }
+    createTokenRequestButton(selectedMode);
+}
+
+function createTokenRequestButton(selectedMode) {
+    if (selectedMode === 'POPUP') {
+        createPopupButton();
+    } else if (selectedMode === 'REDIRECT') {
+        createRedirectButton();
+    }
 }
 
 setupButtonTypeSelector();
