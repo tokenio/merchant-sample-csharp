@@ -47,6 +47,30 @@ namespace merchant_sample_csharp
             );
 
             routes.MapRoute(
+                "FutureDated",
+                "future-dated",
+               new { controller = "Application", action = "FutureDated" }
+            );
+
+            routes.MapRoute(
+                "FutureDatedPopup",
+                "future-dated-popup",
+               new { controller = "Application", action = "FutureDatedPopup" }
+            );
+
+            routes.MapRoute(
+                "RedeemFutureDated",
+                "redeem-future-dated",
+               new { controller = "Application", action = "RedeemFutureDated" }
+            );
+
+            routes.MapRoute(
+                "RedeemFutureDatedPopup",
+                "redeem-future-dated-popup",
+               new { controller = "Application", action = "RedeemFutureDatedPopup" }
+            );
+
+            routes.MapRoute(
                 "Default",
                 "{action}/{id}",
                 new {controller = "Application", action = "Index", id = UrlParameter.Optional}

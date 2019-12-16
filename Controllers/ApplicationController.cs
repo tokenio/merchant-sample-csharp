@@ -109,6 +109,39 @@ namespace merchant_sample_csharp.Controllers
         }
 
         [HttpGet]
+        public RedirectResult FutureDated()
+        {
+            // generate Redirect Url
+            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-future-dated");
+
+            string tokenRequestUrl = InitialiseFutureDateTokenRequestUrl(
+                    Request.QueryString,
+                    redirectUrl,
+                    Response);
+
+            Response.StatusCode = 302;
+            return new RedirectResult(tokenRequestUrl);
+        }
+
+        [HttpPost]
+        public string FutureDatedPopup(TokenRequestModel formData)
+        {
+            NameValueCollection queryData = new NameValueCollection();
+            formData.GetType().GetProperties()
+                .ToList()
+                .ForEach(pi => queryData.Add(pi.Name, pi.GetValue(formData, null)?.ToString()));
+
+            // generate Redirect Url
+            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-future-dated-popup");
+            string tokenRequestUrl = InitialiseFutureDateTokenRequestUrl(
+                    queryData,
+                    redirectUrl,
+                    Response);
+            Response.StatusCode = 200;
+            return tokenRequestUrl;
+        }
+
+        [HttpGet]
         public string Redeem()
         {
             var callbackUrl = Request.Url.ToString();
@@ -188,6 +221,40 @@ namespace merchant_sample_csharp.Controllers
 
             Response.StatusCode = 200;
             return string.Format("Success! Redeemed transfer {0}", standingOrderSubmission.Id);
+        }
+
+        [HttpGet]
+        public string RedeemFutureDated()
+        {
+            var callbackUrl = Request.Url.ToString();
+
+            // retrieve CSRF token from browser cookie
+            var csrfToken = Request.Cookies["csrf_token"];
+
+            var callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(callbackUrl, csrfToken.Value);
+            var token = merchantMember.GetTokenBlocking(callback.TokenId);
+
+            //redeem the token at the server to move the funds
+            var transfer = merchantMember.RedeemTokenBlocking(token);
+            Response.StatusCode = 200;
+            return string.Format("Success! Redeemed transfer {0}", transfer.Id);
+        }
+
+        [HttpGet]
+        public string RedeemFutureDatedPopup()
+        {
+            // retrieve CSRF token from browser cookie
+            var csrfToken = Request.Cookies["csrf_token"];
+
+            var callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(Request.Url.AbsoluteUri,
+            csrfToken.Value);
+            var token = merchantMember.GetTokenBlocking(callback.TokenId);
+
+            //redeem the token at the server to move the funds
+            var transfer = merchantMember.RedeemTokenBlocking(token);
+
+            Response.StatusCode = 200;
+            return string.Format("Success! Redeemed transfer {0}", transfer.Id);
         }
 
         private static string InitializeTokenRequestUrl(
@@ -291,7 +358,57 @@ namespace merchant_sample_csharp.Controllers
 
             string requestId = merchantMember.StoreTokenRequestBlocking(request);
             return tokenClient.GenerateTokenRequestUrlBlocking(requestId);
+        }
 
+        private static string InitialiseFutureDateTokenRequestUrl(
+            NameValueCollection queryData,
+            string callbackUrl,
+            HttpResponseBase response)
+        {
+            var destination = new TransferDestination
+            {
+                Sepa = new TransferDestination.Types.Sepa
+                {
+                    Bic = "bic",
+                    Iban = "DE16700222000072880129"
+
+                },
+                CustomerData = new CustomerData
+                {
+                    LegalNames = { "merchant-sample-csharp" }
+                }
+            };
+            var amount = Convert.ToDouble(queryData["amount"]);
+            var currency = queryData["currency"];
+            var description = queryData["description"];
+
+            // generate CSRF token
+            var csrfToken = Util.Nonce();
+
+            // generate a reference ID for the token
+            var refId = Util.Nonce();
+
+            var cookie = new HttpCookie("csrf_token") { Value = csrfToken };
+            // set CSRF token in browser cookie
+            response.Cookies.Add(cookie);
+
+            //Sets the execution day of payment for after 2 days. 
+            DateTime startDate = DateTime.Now;
+            DateTime executionDate = startDate.AddDays(2);
+
+            var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
+            .SetDescription(description)
+            .AddDestination(destination)
+            .SetRefId(refId)
+            .SetToAlias(merchantMember.GetFirstAliasBlocking())
+            .SetToMemberId(merchantMember.MemberId())
+            .SetRedirectUrl(callbackUrl)
+            .SetCsrfToken(csrfToken)
+            .SetExecutionDate(executionDate)
+            .Build();
+
+            string requestId = merchantMember.StoreTokenRequestBlocking(request);
+            return tokenClient.GenerateTokenRequestUrlBlocking(requestId);
         }
 
         /// <summary>
