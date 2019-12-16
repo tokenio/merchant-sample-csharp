@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Web;
@@ -19,6 +20,7 @@ namespace merchant_sample_csharp.Controllers
     public class ApplicationController : Controller
     {
         private static string rootLocation = AppDomain.CurrentDomain.BaseDirectory;
+        private static readonly string CSRF_TOKEN_KEY = "csrf_token";
 
         // Connect to Token's development sandbox
         private static readonly TokenClient tokenClient = InitializeSDK();
@@ -40,50 +42,13 @@ namespace merchant_sample_csharp.Controllers
         [HttpGet]
         public RedirectResult Transfer()
         {
-            var queryData = Request.QueryString;
-            var destination = new TransferDestination
-            {
-                Sepa = new TransferDestination.Types.Sepa
-                {
-                    Bic = "bic",
-                    Iban = "DE16700222000072880129"
-
-                },
-                CustomerData = new CustomerData
-                {
-                    LegalNames = { "merchant-sample-csharp" }
-                }
-            };
-
-            var amount = Convert.ToDouble(queryData["amount"]);
-            var currency = queryData["currency"];
-            var description = queryData["description"];
-
-            // generate CSRF token
-            var csrfToken = Util.Nonce();
-
-            // generate a reference ID for the token
-            var refId = Util.Nonce();
-
-            var cookie = new HttpCookie("csrf_token") {Value = csrfToken};
-            // set CSRF token in browser cookie
-            Response.Cookies.Add(cookie);
-
-            // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem");
 
-            var transferToken = TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                        .SetDescription(description)
-                        .AddDestination(destination)
-                        .SetRefId(refId)
-                        .SetToAlias(merchantMember.GetFirstAliasBlocking())
-                        .SetToMemberId(merchantMember.MemberId())
-                        .SetRedirectUrl(redirectUrl)
-                        .SetCsrfToken(csrfToken)
-                        .Build();
-            string requestId = merchantMember.StoreTokenRequestBlocking(transferToken);
+            string tokenRequestUrl = InitializeTokenRequestUrl(
+                    Request.QueryString,
+                    redirectUrl,
+                    Response);
 
-            string tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
             Response.StatusCode = 302;
             return new RedirectResult(tokenRequestUrl);
         }
@@ -91,49 +56,19 @@ namespace merchant_sample_csharp.Controllers
         [HttpPost]
         public string TransferPopup(TokenRequestModel formData)
         {
-            var destination = new TransferDestination
-            {
-                Sepa = new TransferDestination.Types.Sepa
-                {
-                    Bic = "bic",
-                    Iban = "DE16700222000072880129"
-
-                },
-                CustomerData = new CustomerData
-                {
-                    LegalNames = { "merchant-sample-csharp" }
-                }
-            };
-            var amount = Convert.ToDouble(formData.amount);
-            var currency = formData.currency;
-            var description = formData.description;
-
-            // generate CSRF token
-            var csrfToken = Util.Nonce();
-
-            // generate a reference ID for the token
-            var refId = Util.Nonce();
-
-            var cookie = new HttpCookie("csrf_token") {Value = csrfToken};
-            // set CSRF token in browser cookie
-            Response.Cookies.Add(cookie);
+            NameValueCollection queryData = new NameValueCollection();
+            formData.GetType().GetProperties()
+                .ToList()
+                .ForEach(pi => queryData.Add(pi.Name, pi.GetValue(formData, null)?.ToString()));
 
             // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-popup");
 
-            var transferToken = TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                        .SetDescription(description)
-                        .AddDestination(destination)
-                        .SetRefId(refId)
-                        .SetToAlias(merchantMember.GetFirstAliasBlocking())
-                        .SetToMemberId(merchantMember.MemberId())
-                        .SetRedirectUrl(redirectUrl)
-                        .SetCsrfToken(csrfToken)
-                        .Build();
+            string tokenRequestUrl = InitializeTokenRequestUrl(
+                    queryData,
+                    redirectUrl,
+                    Response);
 
-            string requestId = merchantMember.StoreTokenRequestBlocking(transferToken);
-
-            string tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
             Response.StatusCode = 200;
             return tokenRequestUrl;
         }
@@ -141,58 +76,13 @@ namespace merchant_sample_csharp.Controllers
         [HttpGet]
         public RedirectResult StandingOrder()
         {
-            var queryData = Request.QueryString;
-            var destination = new TransferDestination
-            {
-                Sepa = new TransferDestination.Types.Sepa
-                {
-                    Bic = "bic",
-                    Iban = "DE16700222000072880129"
-
-                },
-                CustomerData = new CustomerData
-                {
-                    LegalNames = { "merchant-sample-csharp" }
-                }
-            };
-
-            var amount = Convert.ToDouble(queryData["amount"]);
-            var currency = queryData["currency"];
-            var description = queryData["description"];
-
-            // generate CSRF token
-            var csrfToken = Util.Nonce();
-
-            // generate a reference ID for the token
-            var refId = Util.Nonce();
-
-            var cookie = new HttpCookie("csrf_token") { Value = csrfToken };
-            // set CSRF token in browser cookie
-            Response.Cookies.Add(cookie);
-
             // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-standing-order");
 
-            DateTime startDate = DateTime.Now;
-            DateTime endDate = startDate.AddYears(1);
-
-            var request = TokenRequest.StandingOrderRequestBuilder(
-            amount,
-            currency,
-            "MNTH",
-            startDate.ToString("yyyy-MM-dd"),
-            endDate.ToString("yyyy-MM-dd"),
-            new List<TransferDestination>() { destination })
-            .SetDescription(description)
-            .AddDestination(destination)
-            .SetRefId(refId)
-            .SetToAlias(merchantMember.GetFirstAliasBlocking())
-            .SetToMemberId(merchantMember.MemberId())
-            .SetRedirectUrl(redirectUrl)
-            .SetCsrfToken(csrfToken)
-            .Build();
-            string requestId = merchantMember.StoreTokenRequestBlocking(request);
-            string tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
+            string tokenRequestUrl = InitializeStandingOrderTokenRequestUrl(
+                    Request.QueryString,
+                    redirectUrl,
+                    Response);
 
             Response.StatusCode = 302;
             return new RedirectResult(tokenRequestUrl);
@@ -201,59 +91,18 @@ namespace merchant_sample_csharp.Controllers
         [HttpPost]
         public string StandingOrderPopUp(TokenRequestModel formData)
         {
-            var destination = new TransferDestination
-            {
-                Sepa = new TransferDestination.Types.Sepa
-                {
-                    Bic = "bic",
-                    Iban = "DE16700222000072880129"
-
-                },
-                CustomerData = new CustomerData
-                {
-                    LegalNames = { "merchant-sample-csharp" }
-                }
-            };
-
-            var queryData = Request.QueryString;
-
-            var amount = Convert.ToDouble(formData.amount);
-            var currency = formData.currency;
-            var description = formData.description;
-
-            // generate CSRF token
-            var csrfToken = Util.Nonce();
-
-            // generate a reference ID for the token
-            var refId = Util.Nonce();
-
-            var cookie = new HttpCookie("csrf_token") { Value = csrfToken };
-            // set CSRF token in browser cookie
-            Response.Cookies.Add(cookie);
+            NameValueCollection queryData = new NameValueCollection();
+            formData.GetType().GetProperties()
+                .ToList()
+                .ForEach(pi => queryData.Add(pi.Name, pi.GetValue(formData, null)?.ToString()));
 
             // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-standing-order-popup");
 
-            DateTime startDate = DateTime.Now;
-            DateTime endDate = startDate.AddYears(1);
-
-            var request = TokenRequest.StandingOrderRequestBuilder(
-            amount,
-            currency,
-            "MNTH",
-            startDate.ToString("yyyy-MM-dd"),
-            endDate.ToString("yyyy-MM-dd"),
-            new List<TransferDestination>() { destination })
-            .SetDescription(description)
-            .AddDestination(destination)
-            .SetRefId(refId)
-            .SetToAlias(merchantMember.GetFirstAliasBlocking())
-            .SetToMemberId(merchantMember.MemberId())
-            .SetRedirectUrl(redirectUrl)
-            .SetCsrfToken(csrfToken)
-            .Build();
-            string requestId = merchantMember.StoreTokenRequestBlocking(request);
-            string tokenRequestUrl = tokenClient.GenerateTokenRequestUrlBlocking(requestId);
+            string tokenRequestUrl = InitializeStandingOrderTokenRequestUrl(
+                    queryData,
+                    redirectUrl,
+                    Response);
 
             Response.StatusCode = 200;
             return tokenRequestUrl;
@@ -265,7 +114,7 @@ namespace merchant_sample_csharp.Controllers
             var callbackUrl = Request.Url.ToString();
 
             // retrieve CSRF token from browser cookie
-            var csrfToken = Request.Cookies["csrf_token"];
+            var csrfToken = Request.Cookies[CSRF_TOKEN_KEY];
 
             // check CSRF token and retrieve state and token ID from callback parameters
             var callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
@@ -286,7 +135,7 @@ namespace merchant_sample_csharp.Controllers
         public string RedeemPopup()
         {
             // retrieve CSRF token from browser cookie
-            var csrfToken = Request.Cookies["csrf_token"];
+            var csrfToken = Request.Cookies[CSRF_TOKEN_KEY];
 
             // check CSRF token and retrieve state and token ID from callback parameters
             var callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
@@ -308,7 +157,7 @@ namespace merchant_sample_csharp.Controllers
             var callbackUrl = Request.Url.ToString();
 
             // retrieve CSRF token from browser cookie
-            var csrfToken = Request.Cookies["csrf_token"];
+            var csrfToken = Request.Cookies[CSRF_TOKEN_KEY];
 
             // check CSRF token and retrieve state and token ID from callback parameters
             var callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
@@ -326,7 +175,7 @@ namespace merchant_sample_csharp.Controllers
         public string RedeemStandingOrderPopup()
         {
             // retrieve CSRF token from browser cookie
-            var csrfToken = Request.Cookies["csrf_token"];
+            var csrfToken = Request.Cookies[CSRF_TOKEN_KEY];
 
             // check CSRF token and retrieve state and token ID from callback parameters
             var callback = tokenClient.ParseTokenRequestCallbackUrlBlocking(
@@ -339,6 +188,110 @@ namespace merchant_sample_csharp.Controllers
 
             Response.StatusCode = 200;
             return string.Format("Success! Redeemed transfer {0}", standingOrderSubmission.Id);
+        }
+
+        private static string InitializeTokenRequestUrl(
+            NameValueCollection queryData,
+            string callbackUrl,
+            HttpResponseBase response)
+        {
+            var destination = new TransferDestination
+            {
+                Sepa = new TransferDestination.Types.Sepa
+                {
+                    Bic = "bic",
+                    Iban = "DE16700222000072880129"
+
+                },
+                CustomerData = new CustomerData
+                {
+                    LegalNames = { "merchant-sample-csharp" }
+                }
+            };
+
+            var amount = Convert.ToDouble(queryData["amount"]);
+            var currency = queryData["currency"];
+            var description = queryData["description"];
+
+            // generate CSRF token
+            var csrfToken = Util.Nonce();
+
+            // generate a reference ID for the token
+            var refId = Util.Nonce();
+
+            var cookie = new HttpCookie(CSRF_TOKEN_KEY) { Value = csrfToken };
+            // set CSRF token in browser cookie
+            response.Cookies.Add(cookie);
+
+            var request = TokenRequest.TransferTokenRequestBuilder(amount, currency)
+                        .SetDescription(description)
+                        .AddDestination(destination)
+                        .SetRefId(refId)
+                        .SetToAlias(merchantMember.GetFirstAliasBlocking())
+                        .SetToMemberId(merchantMember.MemberId())
+                        .SetRedirectUrl(callbackUrl)
+                        .SetCsrfToken(csrfToken)
+                        .Build();
+            string requestId = merchantMember.StoreTokenRequestBlocking(request);
+
+            return tokenClient.GenerateTokenRequestUrlBlocking(requestId);
+        }
+
+        private static string InitializeStandingOrderTokenRequestUrl(
+            NameValueCollection queryData,
+            string callbackUrl,
+            HttpResponseBase response)
+        {
+            var destination = new TransferDestination
+            {
+                Sepa = new TransferDestination.Types.Sepa
+                {
+                    Bic = "bic",
+                    Iban = "DE16700222000072880129"
+
+                },
+                CustomerData = new CustomerData
+                {
+                    LegalNames = { "merchant-sample-csharp" }
+                }
+            };
+
+            var amount = Convert.ToDouble(queryData["amount"]);
+            var currency = queryData["currency"];
+            var description = queryData["description"];
+
+            // generate CSRF token
+            var csrfToken = Util.Nonce();
+
+            // generate a reference ID for the token
+            var refId = Util.Nonce();
+
+            var cookie = new HttpCookie(CSRF_TOKEN_KEY) { Value = csrfToken };
+            // set CSRF token in browser cookie
+            response.Cookies.Add(cookie);
+
+            DateTime startDate = DateTime.Now;
+            DateTime endDate = startDate.AddYears(1);
+
+            var request = TokenRequest.StandingOrderRequestBuilder(
+                amount,
+                currency,
+                "MNTH",
+                startDate.ToString("yyyy-MM-dd"),
+                endDate.ToString("yyyy-MM-dd"),
+                new List<TransferDestination> { destination })
+                .SetDescription(description)
+                .AddDestination(destination)
+                .SetRefId(refId)
+                .SetToAlias(merchantMember.GetFirstAliasBlocking())
+                .SetToMemberId(merchantMember.MemberId())
+                .SetRedirectUrl(callbackUrl)
+                .SetCsrfToken(csrfToken)
+                .Build();
+
+            string requestId = merchantMember.StoreTokenRequestBlocking(request);
+            return tokenClient.GenerateTokenRequestUrlBlocking(requestId);
+
         }
 
         /// <summary>
