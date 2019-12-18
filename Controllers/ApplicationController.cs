@@ -62,7 +62,7 @@ namespace merchant_sample_csharp.Controllers
 
             formData.GetType().GetProperties()
                 .ToList()
-                .ForEach(pi => queryData.Add(pi.Name, pi.GetValue(formData, null)?.ToString()));
+                .ForEach(property => queryData.Add(property.Name, property.GetValue(formData, null)?.ToString()));
 
             // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-popup");
