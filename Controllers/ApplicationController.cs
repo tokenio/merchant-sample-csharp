@@ -95,13 +95,15 @@ namespace merchant_sample_csharp.Controllers
         [HttpGet]
         public Task<string> RedeemPopup()
         {
+            var queryParams = Request.QueryString;
+
             // retrieve CSRF token from browser cookie
             var csrfToken = Request.Cookies[CSRF_TOKEN_KEY];
 
             // check CSRF token and retrieve state and token ID from callback parameters
             return GetMerchantMember()
                // check CSRF token and retrieve state and token ID from callback parameters
-               .FlatMap(mem => tokenClient.ParseTokenRequestCallbackUrl(Request.Url.AbsoluteUri, csrfToken.Value)
+               .FlatMap(mem => tokenClient.ParseTokenRequestCallbackParams(queryParams, csrfToken.Value)
                    // get the token and check its validity
                    .FlatMap(callback => mem.GetToken(callback.TokenId))
                    // redeem the token at the server to move the funds
