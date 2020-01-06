@@ -16,9 +16,39 @@ namespace merchant_sample_csharp
             );
 
             routes.MapRoute(
-                "RedeemPopup",
-                "redeem-popup",
-                new {controller = "Application", action = "RedeemPopup"}
+                "RedeemTransfer",
+                "redeem-transfer",
+                new { controller = "Application", action = "RedeemTransfer" }
+            );
+
+            routes.MapRoute(
+                "RedeemTransferPopup",
+                "redeem-transfer-popup",
+                new {controller = "Application", action = "RedeemTransferPopup" }
+            );
+
+            routes.MapRoute(
+                "OneStepPayment",
+                "one-step-payment",
+               new { controller = "Application", action = "OneStepPayment" }
+            );
+
+            routes.MapRoute(
+                "OneStepPaymentPopup",
+                "one-step-payment-popup",
+               new { controller = "Application", action = "OneStepPaymentPopup" }
+            );
+
+            routes.MapRoute(
+                "RedeemOneStepPayment",
+                "redeem-one-step-payment",
+               new { controller = "Application", action = "RedeemOneStepPayment" }
+            );
+
+            routes.MapRoute(
+                "RedeemOneStepPaymentPopup",
+                "redeem-one-step-payment-popup",
+               new { controller = "Application", action = "RedeemOneStepPaymentPopup" }
             );
 
             routes.MapRoute(
@@ -68,6 +98,36 @@ namespace merchant_sample_csharp
                 "RedeemFutureDatedPopup",
                 "redeem-future-dated-popup",
                new { controller = "Application", action = "RedeemFutureDatedPopup" }
+            );
+
+            routes.MapRoute(
+                "CrossBorder",
+                "cross-border",
+               new { controller = "Application", action = "CrossBorder" }
+            );
+
+            routes.MapRoute(
+                "RedeemCrossBorder",
+                "redeem-cross-border",
+                new { controller = "Application", action = "RedeemCrossBorder" }
+            );
+
+            routes.MapRoute(
+                "CrossBorderPopup",
+                "cross-border-popup",
+               new { controller = "Application", action = "CrossBorderPopup" }
+            );
+
+            routes.MapRoute(
+                "RedeemCrossBorderPopup",
+                "redeem-cross-border-popup",
+                new { controller = "Application", action = "RedeemCrossBorderPopup" }
+            );
+
+            routes.MapRoute(
+                "SetTransferDestinations",
+                "transferDestinations",
+               new { controller = "Application", action = "SetTransferDestinations" }
             );
 
             routes.MapRoute(
