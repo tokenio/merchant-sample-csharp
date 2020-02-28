@@ -1,34 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
-using Google.Protobuf;
 using Tokenio;
-using Tokenio.Proto.Common.AccountProtos;
 using Tokenio.Proto.Common.AliasProtos;
 using Tokenio.Proto.Common.MemberProtos;
 using Tokenio.Proto.Common.TransferInstructionsProtos;
 using Tokenio.Security;
-using Member = Tokenio.Member;
-using TokenRequest = Tokenio.TokenRequest;
+using Tokenio.Utils;
+using Member = Tokenio.Tpp.Member;
+using TokenClient = Tokenio.Tpp.TokenClient;
+using TokenRequest = Tokenio.TokenRequests.TokenRequest;
 
 namespace merchant_sample_csharp.Controllers
 {
     public class ApplicationController : Controller
     {
-        private static String rootLocation = AppDomain.CurrentDomain.BaseDirectory;
-        
+        private static string rootLocation = AppDomain.CurrentDomain.BaseDirectory;
+        private static readonly string CSRF_TOKEN_KEY = "csrf_token";
+
         // Connect to Token's development sandbox
         private static readonly TokenClient tokenClient = InitializeSDK();
-        
+
         // If we're running the first time, create a new member (Token user account)
         // for this test merchant.
         // If we're running again, log in the previously-created member.
         private static Member merchantMember;
-        
+
         /// <summary>
         /// Returns index page of sample
         /// </summary>
@@ -41,100 +43,45 @@ namespace merchant_sample_csharp.Controllers
         [HttpGet]
         public Task<RedirectResult> Transfer()
         {
-            var queryData = Request.QueryString;
-            var destination = JsonParser.Default.Parse<BankAccount>("{\"sepa\":{\"iban\":\"DE16700222000072880129\"}}");
-
-            var amount = Convert.ToDouble(queryData["amount"]);
-            var currency = queryData["currency"];
-            var description = queryData["description"];
-
-            // generate CSRF token
-            var csrfToken = Util.Nonce();
-
-            // generate a reference ID for the token
-            var refId = Util.Nonce();
-
-            var cookie = new HttpCookie("csrf_token") {Value = csrfToken};
-            // set CSRF token in browser cookie
-            Response.Cookies.Add(cookie);
-
-            // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem");
 
-            return GetMerchantMember().FlatMap(mem => mem.GetFirstAlias()
-                .FlatMap(alias => mem.StoreTokenRequest(
-                    // Create a token request to be stored
-                    TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                        .SetDescription(description)
-                        .AddDestination(new TransferEndpoint
-                        {
-                            Account = destination
-                        })
-                        .SetRefId(refId)
-                        .SetToAlias(alias)
-                        .SetToMemberId(mem.MemberId())
-                        .SetRedirectUrl(redirectUrl)
-                        .SetCsrfToken(csrfToken)
-                        .build()))
-                // generate the Token request URL to redirect to
-                .FlatMap(requestId => tokenClient.GenerateTokenRequestUrl(requestId))
-                .Map(url =>
-                {
-                    // send a 302 redirect
-                    Response.StatusCode = 302;
-                    return new RedirectResult(url);
-                }));
+            return InitializeTokenRequestUrl(
+                    Request.QueryString,
+                    redirectUrl,
+                    Response).Map(url => {
+                        // send a 302 redirect
+                        Response.StatusCode = 302;
+                        return new RedirectResult(url);
+                    });
         }
 
         [HttpPost]
         public Task<string> TransferPopup(TokenRequestModel formData)
         {
-            var destination = JsonParser.Default.Parse<BankAccount>("{\"sepa\":{\"iban\":\"DE16700222000072880129\"}}");
+            NameValueCollection queryData = new NameValueCollection();
 
-            var amount = Convert.ToDouble(formData.amount);
-            var currency = formData.currency;
-            var description = formData.description;
-
-            // generate CSRF token
-            var csrfToken = Util.Nonce();
-
-            // generate a reference ID for the token
-            var refId = Util.Nonce();
-
-            var cookie = new HttpCookie("csrf_token") {Value = csrfToken};
-            // set CSRF token in browser cookie
-            Response.Cookies.Add(cookie);
+            formData.GetType().GetProperties()
+                .ToList()
+                .ForEach(property => queryData.Add(property.Name, property.GetValue(formData, null)?.ToString()));
 
             // generate Redirect Url
             var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-popup");
 
-            return GetMerchantMember().FlatMap(mem => mem.GetFirstAlias()
-                .FlatMap(alias => mem.StoreTokenRequest(
-                    // Create a token request to be stored
-                    TokenRequest.TransferTokenRequestBuilder(amount, currency)
-                        .SetDescription(description)
-                        .AddDestination(new TransferEndpoint
-                        {
-                            Account = destination
-                        })
-                        .SetRefId(refId)
-                        .SetToAlias(alias)
-                        .SetToMemberId(mem.MemberId())
-                        .SetRedirectUrl(redirectUrl)
-                        .SetCsrfToken(csrfToken)
-                        .build()))
-                // generate the Token request URL to redirect to
-                .FlatMap(requestId => tokenClient.GenerateTokenRequestUrl(requestId)));
+            return InitializeTokenRequestUrl(
+                    queryData,
+                    redirectUrl,
+                    Response);
         }
 
         [HttpGet]
         public Task<string> Redeem()
         {
             var callbackUrl = Request.Url.ToString();
-            
+
             // retrieve CSRF token from browser cookie
             var csrfToken = Request.Cookies["csrf_token"];
 
+            // check CSRF token and retrieve state and token ID from callback parameters
             return GetMerchantMember()
                 // check CSRF token and retrieve state and token ID from callback parameters
                 .FlatMap(mem => tokenClient.ParseTokenRequestCallbackUrl(callbackUrl, csrfToken.Value)
@@ -151,16 +98,66 @@ namespace merchant_sample_csharp.Controllers
             var queryParams = Request.QueryString;
 
             // retrieve CSRF token from browser cookie
-            var csrfToken = Request.Cookies["csrf_token"];
+            var csrfToken = Request.Cookies[CSRF_TOKEN_KEY];
 
+            // check CSRF token and retrieve state and token ID from callback parameters
             return GetMerchantMember()
-                // check CSRF token and retrieve state and token ID from callback parameters
-                .FlatMap(mem => tokenClient.ParseTokenRequestCallbackParams(queryParams, csrfToken.Value)
-                    // get the token and check its validity
-                    .FlatMap(callback => mem.GetToken(callback.TokenId))
-                    // redeem the token at the server to move the funds
-                    .FlatMap(mem.RedeemToken)
-                    .Map(transfer => "Success! Redeemed transfer " + transfer.Id));
+               // check CSRF token and retrieve state and token ID from callback parameters
+               .FlatMap(mem => tokenClient.ParseTokenRequestCallbackParams(queryParams, csrfToken.Value)
+                   // get the token and check its validity
+                   .FlatMap(callback => mem.GetToken(callback.TokenId))
+                   // redeem the token at the server to move the funds
+                   .FlatMap(mem.RedeemToken)
+                   .Map(transfer => "Success! Redeemed transfer " + transfer.Id));
+        }
+
+        private static Task<string> InitializeTokenRequestUrl(
+            NameValueCollection queryData,
+            string callbackUrl,
+            HttpResponseBase response)
+        {
+            var destination = new TransferDestination
+            {
+                Sepa = new TransferDestination.Types.Sepa
+                {
+                    Bic = "bic",
+                    Iban = "DE16700222000072880129"
+
+                },
+                CustomerData = new CustomerData
+                {
+                    LegalNames = { "merchant-sample-csharp" }
+                }
+            };
+
+            var amount = Convert.ToDouble(queryData["amount"]);
+            var currency = queryData["currency"];
+            var description = queryData["description"];
+
+            // generate CSRF token
+            var csrfToken = Util.Nonce();
+
+            // generate a reference ID for the token
+            var refId = Util.Nonce();
+
+            var cookie = new HttpCookie(CSRF_TOKEN_KEY) { Value = csrfToken };
+            // set CSRF token in browser cookie
+            response.Cookies.Add(cookie);
+
+            return GetMerchantMember().FlatMap(mem => mem.GetFirstAlias()
+               .FlatMap(alias => mem.StoreTokenRequest(
+                   // Create a token request to be stored
+                   TokenRequest.TransferTokenRequestBuilder(amount, currency)
+                       .SetDescription(description)
+                       .AddDestination(destination)
+                       .SetRefId(refId)
+                       .SetToAlias(alias)
+                       .SetToMemberId(mem.MemberId())
+                       .SetRedirectUrl(callbackUrl)
+                       .SetCsrfToken(csrfToken)
+                       .Build()))
+               // generate the Token request URL to redirect to
+               .FlatMap(requestId => tokenClient.GenerateTokenRequestUrl(requestId)));
         }
 
         /// <summary>
@@ -219,6 +216,7 @@ namespace merchant_sample_csharp.Controllers
                 Value = "mcsharp-" + Util.Nonce().ToUpper() + "+noverify@example.com",
                 Type = Alias.Types.Type.Email
             };
+
             return tokenClient.CreateMember(alias)
                 .FlatMap(async (mem) =>
                 {
@@ -246,13 +244,13 @@ namespace merchant_sample_csharp.Controllers
             var keyDir = Directory.GetFiles(Path.Combine(rootLocation, "keys"));
 
             var memberIds = keyDir.Where(d => d.Contains("_")).Select(d => d.Replace("_", ":"));
-            
-            return !memberIds.Any() 
-                ? CreateMember(tokenClient) 
+
+            return !memberIds.Any()
+                ? CreateMember(tokenClient)
                 : LoadMember(tokenClient, Path.GetFileName(memberIds.First()));
 
         }
-        
+
         [NonAction]
         private static Task<Member> GetMerchantMember()
         {

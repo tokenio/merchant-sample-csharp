@@ -294,9 +294,11 @@
       <Private>True</Private>
       <HintPath>packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
     </Reference>
-    <Reference Include="Token.SDK.Net, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>packages\Token.SDK.Net.2.0.0-beta2\lib\netstandard2.0\Token.SDK.Net.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Token.SDK.Core">
+      <HintPath>packages\Token.SDK.Core.0.0.3\lib\netstandard2.0\Token.SDK.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Token.SDK.TPP">
+      <HintPath>packages\Token.SDK.TPP.0.0.3\lib\netstandard2.0\Token.SDK.TPP.dll</HintPath>
     </Reference>
     <Reference Include="WebGrease">
       <Private>True</Private>
