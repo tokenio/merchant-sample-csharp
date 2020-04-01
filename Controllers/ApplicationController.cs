@@ -18,7 +18,7 @@ using Member = Tokenio.Tpp.Member;
 using TokenClient = Tokenio.Tpp.TokenClient;
 using TokenRequest = Tokenio.TokenRequests.TokenRequest;
 using DestinationCase = Tokenio.Proto.Common.TransferInstructionsProtos.TransferDestination.DestinationOneofCase;
-
+using KeyNotFoundException= Tokenio.Security.KeyNotFoundException;
 
 namespace merchant_sample_csharp.Controllers
 {
@@ -393,7 +393,7 @@ namespace merchant_sample_csharp.Controllers
                 {
                     //Sets the execution day of payment for after 2 days. 
                     DateTime startDate = DateTime.Now;
-                    DateTime executionDate = startDate.AddDays(2);
+                    string executionDate = startDate.AddDays(2).ToString("yyyyMMdd");
                     tokenRequestBuilder.AddDestination(destination);
                     tokenRequestBuilder.SetExecutionDate(executionDate);
                 }
