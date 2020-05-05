@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 using Tokenio;
-using Tokenio.Proto.Common.AccountProtos;
 using Tokenio.Proto.Common.AliasProtos;
 using Tokenio.Proto.Common.MemberProtos;
 using Tokenio.Proto.Common.TransferInstructionsProtos;
