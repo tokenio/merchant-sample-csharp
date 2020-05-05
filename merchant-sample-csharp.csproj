@@ -265,18 +265,6 @@
     <Reference Include="System.Interactive.Async">
       <HintPath>packages\System.Interactive.Async.4.0.0\lib\net461\System.Interactive.Async.dll</HintPath>
     </Reference>
-    <Reference Include="Token.Proto.Net">
-      <HintPath>packages\Token.Proto.Net.0.0.3\lib\netstandard2.0\Token.Proto.Net.dll</HintPath>
-    </Reference>
-    <Reference Include="Token.Security.Net">
-      <HintPath>packages\Token.Security.Net.0.0.4\lib\netstandard2.0\Token.Security.Net.dll</HintPath>
-    </Reference>
-    <Reference Include="Token.SDK.Core">
-      <HintPath>packages\Token.SDK.Core.0.0.6\lib\netstandard2.0\Token.SDK.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Token.SDK.TPP">
-      <HintPath>packages\Token.SDK.TPP.0.0.6\lib\netstandard2.0\Token.SDK.TPP.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
@@ -309,6 +297,22 @@
     <Reference Include="System.Web.WebPages.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <Private>True</Private>
       <HintPath>packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
+    </Reference>
+    <Reference Include="Token.Proto.Net, Version=0.0.3.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>packages\Token.Proto.Net.0.0.3\lib\netstandard2.0\Token.Proto.Net.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Token.SDK.Core, Version=0.0.7.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>packages\Token.SDK.Core.0.0.7\lib\netstandard2.0\Token.SDK.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Token.SDK.TPP, Version=0.0.7.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>packages\Token.SDK.TPP.0.0.7\lib\netstandard2.0\Token.SDK.TPP.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Token.Security.Net, Version=0.0.4.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>packages\Token.Security.Net.0.0.4\lib\netstandard2.0\Token.Security.Net.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="WebGrease">
       <Private>True</Private>

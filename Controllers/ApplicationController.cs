@@ -358,9 +358,9 @@ namespace merchant_sample_csharp.Controllers
             {
                 Account = new BankAccount
                 {
-                    Sepa = new BankAccount.Types.Sepa
+                    Iban = new BankAccount.Types.Iban
                     {
-                        Iban = "IT77O0848283352871412938123"
+                        Iban_ = "IT77O0848283352871412938123"
                     }
                 },
                 BankId = bankId
