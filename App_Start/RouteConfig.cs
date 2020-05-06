@@ -40,15 +40,15 @@ namespace merchant_sample_csharp
             );
 
             routes.MapRoute(
-                "RedeemOneStepPayment",
-                "redeem-one-step-payment",
-               new { controller = "Application", action = "RedeemOneStepPayment" }
+                "RedirectOneStepPayment",
+                "redirect-one-step-payment",
+               new { controller = "Application", action = "RedirectOneStepPayment" }
             );
 
             routes.MapRoute(
-                "RedeemOneStepPaymentPopup",
-                "redeem-one-step-payment-popup",
-               new { controller = "Application", action = "RedeemOneStepPaymentPopup" }
+                "RedirectOneStepPaymentPopup",
+                "redirect-one-step-payment-popup",
+               new { controller = "Application", action = "RedirectOneStepPayment" }
             );
 
             routes.MapRoute(

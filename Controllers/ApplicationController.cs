@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
+using System.Web.Script.Serialization;
+using Newtonsoft.Json;
 using Tokenio;
 using Tokenio.Proto.Common.AccountProtos;
 using Tokenio.Proto.Common.AliasProtos;
@@ -95,7 +97,7 @@ namespace merchant_sample_csharp.Controllers
         [HttpGet]
         public Task<RedirectResult> OneStepPayment()
         {
-            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-one-step-payment");
+            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redirect-one-step-payment");
 
             return InitializeTokenRequestUrl(
                    Request.QueryString,
@@ -117,7 +119,7 @@ namespace merchant_sample_csharp.Controllers
                 .ForEach(property => queryData.Add(property.Name, property.GetValue(formData, null)?.ToString()));
 
             // generate Redirect Url
-            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redeem-one-step-payment-popup");
+            var redirectUrl = string.Format("{0}://{1}/{2}", Request.Url.Scheme, Request.Url.Authority, "redirect-one-step-payment-popup");
 
             return InitializeTokenRequestUrl(
                    queryData,
@@ -278,15 +280,9 @@ namespace merchant_sample_csharp.Controllers
         }
 
         [HttpGet]
-        public Task<string> RedeemOneStepPayment()
+        public Task<string> RedirectOneStepPayment()
         {
-            return Redeem();
-        }
-
-        [HttpGet]
-        public Task<string> RedeemOneStepPaymentPopup()
-        {
-            return RedeemPopup();
+            return Task.FromResult("Success! One Step Payment " + Request.QueryString.Get("transferId"));
         }
 
         [HttpGet]

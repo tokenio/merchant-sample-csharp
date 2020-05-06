@@ -79,7 +79,7 @@ function createPopupButton() {
     } else if (selectedTransferType === 'FUTURE_DATED') {
         path = '/redeem-future-dated-popup';
     } else if (selectedTransferType === 'ONE_STEP') {
-        path = '/redeem-one-step-payment-popup';
+        path = '/redirect-one-step-payment-popup';
     } else if (selectedTransferType === 'CROSS_BORDER') {
         path = '/redeem-cross-border-popup';
     } else {
