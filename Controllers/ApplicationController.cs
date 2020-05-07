@@ -447,7 +447,6 @@ namespace merchant_sample_csharp.Controllers
                             endDate.ToString("yyyy-MM-dd"),
                             new List<TransferDestination> { destination })
                         .SetDescription(description)
-                        .AddDestination(destination)
                         .SetRefId(refId)
                         .SetToAlias(alias)
                         .SetToMemberId(mem.MemberId())
